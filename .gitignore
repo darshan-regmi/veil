@@ -1,0 +1,42 @@
+# Node modules
+node_modules/
+
+# Expo caches and build artifacts
+.expo/
+.expo-shared/
+.expo-dev-client/
+web-build/
+
+# Metro bundler cache
+metro-cache/
+
+# Android build artifacts
+android/build/
+android/app/build/
+
+# iOS build artifacts and dependencies
+ios/build/
+ios/Pods/
+ios/DerivedData/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE/project settings
+.vscode/
+.idea/
+
+# macOS system files
+.DS_Store
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Xcode user data
+ios/**/*.xcuserdata/
+ios/**/*.xcuserstate
