@@ -7,13 +7,18 @@
     "icon": "./assets/icon.png",
     "scheme": "veil",
     "userInterfaceStyle": "light",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.darshanregmi.veil",
       "supportsTablet": true,
@@ -39,10 +44,11 @@
       "expo-router",
       "expo-web-browser"
     ],
+    "owner": "darshan_regmi",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "626a0b7e-9ded-44f8-8bc4-ebf23b04e20e"
+        "projectId": "531e303c-88c4-4dd4-b4d9-c75dd1abfc82"
       }
     }
   }
