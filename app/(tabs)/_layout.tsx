@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
-import { BookOpen } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons"; // ← UPDATED ICONS IMPORT
 
 /* ─── Constants ───────────────────────────────────────────── */
 const COLORS = {
@@ -58,7 +58,8 @@ export default function TabLayout() {
         options={{
           title: "Library",
           tabBarIcon: ({ color, focused }) => (
-            <BookOpen
+            <Feather
+              name="book-open"
               size={ICON_SIZE}
               color={color}
               strokeWidth={focused ? 2 : 1.5}

@@ -1,6 +1,6 @@
 import { Link, Stack } from "expo-router";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
-import { BookOpen, Home } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons"; // ← UPDATED ICONS IMPORT
 
 /* ─── Constants ───────────────────────────────────────────── */
 const COLORS = {
@@ -24,7 +24,7 @@ export default function NotFoundScreen() {
       />
       <View style={styles.container}>
         <View style={styles.content}>
-          <BookOpen size={64} color={COLORS.primary} strokeWidth={1.5} />
+          <Feather name="book-open" size={64} color={COLORS.primary} /> {/* ICON UPDATED */}
 
           <Text style={styles.title}>Page Not Found</Text>
           <Text style={styles.description}>
@@ -39,7 +39,7 @@ export default function NotFoundScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go to home screen"
             >
-              <Home size={20} color={COLORS.surface} strokeWidth={1.5} />
+              <Feather name="home" size={20} color={COLORS.surface} /> {/* ICON UPDATED */}
               <Text style={styles.buttonText}>Go to Library</Text>
             </TouchableOpacity>
           </Link>
