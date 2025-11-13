@@ -1,7 +1,49 @@
 {
-  "plugins": [
-    "expo-font",
-    "expo-router",
-    "expo-web-browser"
-  ]
+  "expo": {
+    "name": "Veil",
+    "slug": "veil",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "veil",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "com.darshanregmi.veil",
+      "supportsTablet": true,
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app requires camera access to attach images to poems.",
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to attach images to poems."
+      }
+    },
+    "android": {
+      "package": "com.darshanregmi.veil",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF7F0"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "626a0b7e-9ded-44f8-8bc4-ebf23b04e20e"
+      }
+    }
+  }
 }
