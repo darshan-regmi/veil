@@ -14,7 +14,8 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/531e303c-88c4-4dd4-b4d9-c75dd1abfc82"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -50,6 +51,7 @@
       "eas": {
         "projectId": "531e303c-88c4-4dd4-b4d9-c75dd1abfc82"
       }
-    }
+    },
+    "runtimeVersion": "1.0.0"
   }
 }
