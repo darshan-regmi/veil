@@ -4,23 +4,32 @@ import React, {
   useRef,
   useEffect,
   useState,
+  memo,
 } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
-  TouchableOpacity,
   Share,
   Alert,
   Platform,
   Animated,
   Dimensions,
+  Pressable,
+  StatusBar,
+  Clipboard,
+  ActionSheetIOS,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type PoemNote } from "@/utils/storage";
+
+// Get status bar height for Android
+const STATUSBAR_HEIGHT =
+  Platform.OS === "android" ? StatusBar.currentHeight || 24 : 0;
 
 /* ─── Constants ───────────────────────────────────────────── */
 const COLORS = {
@@ -33,8 +42,7 @@ const COLORS = {
   textSecondary: "#757575",
   accent: "#E8DED0",
   success: "#4CAF50",
-  statusDraft: "#FFA726",
-  statusPublished: "#66BB6A",
+  ripple: "rgba(139, 90, 60, 0.1)",
 } as const;
 
 const READING = {
@@ -44,6 +52,12 @@ const READING = {
 
 const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+const ANIMATION_CONFIG = {
+  entrance: { duration: 500 },
+  spring: { friction: 8 },
+  toast: { duration: 2500 },
+} as const;
 
 /* ─── Utilities ───────────────────────────────────────────── */
 const formatDate = (dateString: string): string => {
@@ -105,7 +119,7 @@ const getReadingTime = (wordCount: number): string => {
 };
 
 /* ─── Animated Icon Button ───────────────────────────────── */
-const AnimatedIconButton = React.memo(function AnimatedIconButton({
+const AnimatedIconButton = memo(function AnimatedIconButton({
   icon,
   onPress,
   accessibilityLabel,
@@ -121,6 +135,7 @@ const AnimatedIconButton = React.memo(function AnimatedIconButton({
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
       toValue: 0.85,
+      friction: 3,
       useNativeDriver: true,
     }).start();
   }, [scaleAnim]);
@@ -135,19 +150,21 @@ const AnimatedIconButton = React.memo(function AnimatedIconButton({
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={styles.headerButton}
+      <Pressable
+        style={({ pressed }) => [
+          styles.headerButton,
+          pressed && styles.headerButtonPressed,
+        ]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         hitSlop={HIT_SLOP}
-        activeOpacity={1}
         accessible
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
       >
         <Feather name={icon as any} size={24} color={color} strokeWidth={1.8} />
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 });
@@ -160,7 +177,7 @@ interface StatItemProps {
   delay?: number;
 }
 
-const StatItem = React.memo(function StatItem({
+const StatItem = memo(function StatItem({
   icon,
   label,
   value,
@@ -203,62 +220,64 @@ const StatItem = React.memo(function StatItem({
   );
 });
 
-/* ─── Action Button Component ───────────────────────────────── */
-const ActionButton = React.memo(function ActionButton({
-  icon,
-  label,
-  onPress,
-  variant = "primary",
+/* ─── Toast Component ───────────────────────────────────── */
+const Toast = memo(function Toast({
+  visible,
+  message,
+  bottomInset,
 }: {
-  icon: string;
-  label: string;
-  onPress: () => void;
-  variant?: "primary" | "secondary";
+  visible: boolean;
+  message: string;
+  bottomInset: number;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(100)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
-  const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 100,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, translateY, opacity]);
 
-  const handlePressOut = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 6,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
+  if (!visible) return null;
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={[
-          styles.actionButton,
-          variant === "secondary" && styles.actionButtonSecondary,
-        ]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
-      >
-        <Feather
-          name={icon as any}
-          size={18}
-          color={variant === "primary" ? COLORS.surface : COLORS.primary}
-          strokeWidth={1.8}
-        />
-        <Text
-          style={[
-            styles.actionButtonText,
-            variant === "secondary" && styles.actionButtonTextSecondary,
-          ]}
-        >
-          {label}
-        </Text>
-      </TouchableOpacity>
+    <Animated.View
+      style={[
+        styles.copiedToast,
+        {
+          bottom: bottomInset + 40,
+          transform: [{ translateY }],
+          opacity,
+        },
+      ]}
+    >
+      <Feather name="check-circle" size={18} color={COLORS.success} />
+      <Text style={styles.copiedToastText}>{message}</Text>
     </Animated.View>
   );
 });
@@ -267,9 +286,11 @@ const ActionButton = React.memo(function ActionButton({
 export default function PoemDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const [isLiked, setIsLiked] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Animations
   const titleFadeAnim = useRef(new Animated.Value(0)).current;
@@ -319,12 +340,12 @@ export default function PoemDetailScreen() {
     Animated.parallel([
       Animated.timing(titleFadeAnim, {
         toValue: 1,
-        duration: 500,
+        duration: ANIMATION_CONFIG.entrance.duration,
         useNativeDriver: true,
       }),
       Animated.spring(titleSlideAnim, {
         toValue: 0,
-        friction: 8,
+        friction: ANIMATION_CONFIG.spring.friction,
         useNativeDriver: true,
       }),
     ]).start();
@@ -337,17 +358,47 @@ export default function PoemDetailScreen() {
     }).start();
   }, [titleFadeAnim, titleSlideAnim, contentFadeAnim]);
 
+  // Cleanup timer
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showToast = useCallback((message: string) => {
+    setShowCopiedToast(true);
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+
+    toastTimerRef.current = setTimeout(() => {
+      setShowCopiedToast(false);
+    }, ANIMATION_CONFIG.toast.duration);
+  }, []);
+
   const handleShare = useCallback(async () => {
     try {
+      if (Platform.OS !== "web") {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
       const shareContent = `${poem.title}\n\n${poem.content}\n\n— Created ${dates.created.date}`;
 
-      const result = await Share.share({
-        message: shareContent,
-        title: poem.title,
-      });
+      const result = await Share.share(
+        {
+          message: shareContent,
+          title: poem.title,
+        },
+        {
+          dialogTitle: `Share "${poem.title}"`,
+        }
+      );
 
       if (result.action === Share.sharedAction) {
-        Alert.alert("Success", "Poem shared successfully!");
+        showToast("Poem shared successfully!");
       }
     } catch (error) {
       const errorMessage =
@@ -358,47 +409,92 @@ export default function PoemDetailScreen() {
         console.error("Share error:", errorMessage);
       }
     }
-  }, [poem.title, poem.content, dates.created.date]);
+  }, [poem.title, poem.content, dates.created.date, showToast]);
 
-  const handleCopy = useCallback(() => {
-    // In a real app, you'd use Clipboard API here
-    setShowCopiedToast(true);
-    setTimeout(() => setShowCopiedToast(false), 2000);
-    Alert.alert("Copied!", "Poem copied to clipboard");
-  }, []);
+  const handleCopy = useCallback(async () => {
+    try {
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
+      }
 
-  const handleLike = useCallback(() => {
+      if (Platform.OS === "web") {
+        await navigator.clipboard.writeText(poem.content);
+      } else {
+        await Clipboard.setStringAsync(poem.content);
+      }
+
+      showToast("Copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy poem");
+    }
+  }, [poem.content, showToast]);
+
+  const handleLike = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     setIsLiked((prev) => !prev);
   }, []);
 
-  const handleBack = useCallback(() => {
+  const handleBack = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     router.back();
   }, [router]);
 
   const handleMoreOptions = useCallback(() => {
-    Alert.alert(
-      poem.title,
-      "More options",
-      [
+    if (Platform.OS === "ios") {
+      // Native iOS Action Sheet
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: "Copy to Clipboard",
-          onPress: handleCopy,
+          options: [
+            "Cancel",
+            "Copy to Clipboard",
+            isLiked ? "Unlike" : "Like",
+            "Share",
+          ],
+          cancelButtonIndex: 0,
+          title: poem.title,
         },
-        {
-          text: isLiked ? "Unlike" : "Like",
-          onPress: handleLike,
-        },
-        {
-          text: "Share",
-          onPress: handleShare,
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleCopy();
+          } else if (buttonIndex === 2) {
+            handleLike();
+          } else if (buttonIndex === 3) {
+            handleShare();
+          }
+        }
+      );
+    } else {
+      // Android/Web Alert
+      Alert.alert(
+        poem.title,
+        "Choose an action",
+        [
+          {
+            text: "Copy to Clipboard",
+            onPress: handleCopy,
+          },
+          {
+            text: isLiked ? "Unlike" : "Like",
+            onPress: handleLike,
+          },
+          {
+            text: "Share",
+            onPress: handleShare,
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ],
+        { cancelable: true }
+      );
+    }
   }, [poem.title, handleCopy, handleLike, handleShare, isLiked]);
 
   // Header background opacity based on scroll
@@ -408,13 +504,26 @@ export default function PoemDetailScreen() {
     extrapolate: "clamp",
   });
 
+  const headerPaddingTop = Platform.select({
+    ios: insets.top > 0 ? insets.top : 16,
+    android: STATUSBAR_HEIGHT + 16,
+  });
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar
+        backgroundColor={COLORS.background}
+        barStyle="dark-content"
+        animated
+        translucent={Platform.OS === "android"}
+      />
+
       {/* Animated Header */}
       <Animated.View
         style={[
           styles.header,
           {
+            paddingTop: headerPaddingTop,
             backgroundColor: headerOpacity.interpolate({
               inputRange: [0, 1],
               outputRange: ["transparent", COLORS.surface],
@@ -433,12 +542,6 @@ export default function PoemDetailScreen() {
         />
         <View style={styles.headerActions}>
           <AnimatedIconButton
-            icon={isLiked ? "heart" : "heart"}
-            onPress={handleLike}
-            accessibilityLabel={isLiked ? "Unlike poem" : "Like poem"}
-            color={isLiked ? "#E57373" : COLORS.primary}
-          />
-          <AnimatedIconButton
             icon="more-vertical"
             onPress={handleMoreOptions}
             accessibilityLabel="More options"
@@ -448,7 +551,10 @@ export default function PoemDetailScreen() {
 
       <Animated.ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 60 },
+        ]}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -456,7 +562,6 @@ export default function PoemDetailScreen() {
         )}
         scrollEventThrottle={16}
       >
-
         {/* Title */}
         <Animated.Text
           style={[
@@ -546,75 +651,50 @@ export default function PoemDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Copied Toast */}
-      {showCopiedToast && (
-        <Animated.View style={styles.copiedToast}>
-          <Feather name="check-circle" size={18} color={COLORS.success} />
-          <Text style={styles.copiedToastText}>Copied to clipboard</Text>
-        </Animated.View>
-      )}
-    </SafeAreaView>
+      {/* Toast */}
+      <Toast
+        visible={showCopiedToast}
+        message="Copied to clipboard"
+        bottomInset={insets.bottom}
+      />
+    </View>
   );
 }
 
 /* ─── Styles ──────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  // ====== ROOT ======
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-
-  // ====== HEADER ======
   header: {
-    marginTop: Platform.select({ android: 16, ios: 0 }),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     zIndex: 10,
   },
   headerButton: {
     padding: 4,
+    borderRadius: 8,
+  },
+  headerButtonPressed: {
+    backgroundColor: COLORS.ripple,
+    opacity: 0.7,
   },
   headerActions: {
     flexDirection: "row",
     gap: 16,
   },
-
-  // ====== SCROLL VIEW ======
-  scrollView: { flex: 1 },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 60,
   },
-
-  // ====== STATUS BADGE ======
-  statusBadge: {
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  statusBadgePublished: { backgroundColor: "#E8F5E9" },
-  statusBadgeDraft: { backgroundColor: "#FFF3E0" },
-  statusText: {
-    fontSize: 12,
-    fontFamily: "LibreBaskerville-Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  statusTextPublished: { color: COLORS.statusPublished },
-  statusTextDraft: { color: COLORS.statusDraft },
-
-  // ====== TITLE ======
   title: {
     fontSize: 34,
     fontFamily: "LibreBaskerville-Bold",
@@ -623,15 +703,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "center",
     letterSpacing: -0.5,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
-
-  // ====== METADATA ======
   metadata: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
     marginBottom: 28,
+    flexWrap: "wrap",
   },
   metadataRow: {
     flexDirection: "row",
@@ -648,9 +728,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "LibreBaskerville-Regular",
     color: COLORS.textSecondary,
+    fontWeight: "400",
   },
-
-  // ====== STATS ======
   statsContainer: {
     flexDirection: "row",
     backgroundColor: COLORS.surface,
@@ -689,19 +768,19 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.8,
+    fontWeight: "400",
   },
   statValue: {
     fontSize: 20,
     fontFamily: "LibreBaskerville-Bold",
     color: COLORS.textPrimary,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   statDivider: {
     width: 1,
     backgroundColor: COLORS.border,
     marginHorizontal: 12,
   },
-
-  // ====== CONTENT ======
   contentContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: 20,
@@ -736,6 +815,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textTransform: "uppercase",
     letterSpacing: 1,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   content: {
     fontSize: 17,
@@ -743,66 +823,8 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     lineHeight: 32,
     textAlign: "left",
+    fontWeight: "400",
   },
-
-  // ====== ADDITIONAL STATS ======
-  additionalStats: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  additionalStatItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  additionalStatText: {
-    fontSize: 13,
-    fontFamily: "LibreBaskerville-Regular",
-    color: COLORS.textSecondary,
-  },
-
-  // ====== ACTIONS ======
-  actionsContainer: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 48,
-    paddingHorizontal: 8,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
-    borderRadius: 14,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-      },
-      android: { elevation: 5 },
-    }),
-  },
-  actionButtonSecondary: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  actionButtonText: {
-    fontSize: 15,
-    letterSpacing: 0.4,
-    fontFamily: "LibreBaskerville-Bold",
-    color: COLORS.surface,
-    textAlign: "center",
-    paddingHorizontal: 6,
-  },
-  actionButtonTextSecondary: { color: COLORS.primary },
-
-  // ====== FOOTER ======
   footer: {
     flexDirection: "row",
     alignItems: "center",
@@ -818,25 +840,22 @@ const styles = StyleSheet.create({
     fontFamily: "LibreBaskerville-Regular",
     color: COLORS.textSecondary,
     textAlign: "center",
+    fontWeight: "400",
   },
-
-  // ====== DECORATION ======
   quoteMarks: {
     position: "absolute",
     top: 40,
     right: 40,
     opacity: 0.05,
+    pointerEvents: "none",
   },
   quoteMark: {
     fontSize: 120,
     fontFamily: "LibreBaskerville-Bold",
     color: COLORS.primary,
   },
-
-  // ====== TOAST ======
   copiedToast: {
     position: "absolute",
-    bottom: 40,
     left: 24,
     right: 24,
     backgroundColor: COLORS.surface,
@@ -862,5 +881,6 @@ const styles = StyleSheet.create({
     fontFamily: "LibreBaskerville-Regular",
     color: COLORS.textPrimary,
     flex: 1,
+    fontWeight: "400",
   },
 });
