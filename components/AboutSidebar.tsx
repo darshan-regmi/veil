@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from "react";
+import React, { useRef, useEffect, useCallback, useState, memo } from "react";
 import {
   View,
   Text,
@@ -14,9 +14,11 @@ import {
   Linking,
   Alert,
   ScrollView,
+  Pressable,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /* ─── Constants ───────────────────────────────────────────── */
 const DIMENSIONS = {
@@ -35,7 +37,6 @@ const COLORS = {
   white: "#FFFFFF",
   overlay: "rgba(0, 0, 0, 0.45)",
   accent: "#D46A6A",
-  glass: "rgba(255, 255, 255, 0.65)",
   bioAccent: "#F5EEDF",
   subtleShadow: "rgba(139,90,60,0.08)",
 } as const;
@@ -66,80 +67,68 @@ const STATS = [
   { icon: "book-open", label: "Collections", value: "2" },
 ];
 
-/* ─── Social Link ───────────────────────────────────────────── */
-const SocialLink = ({
-  icon,
-  label,
-  url,
-}: {
-  icon: string;
-  label: string;
-  url: string;
-}) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+const ANIMATION_CONFIG = {
+  slideInDuration: 330,
+  slideOutDuration: 230,
+  opacityDuration: 180,
+  springFriction: 7,
+} as const;
 
-  const handlePressIn = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.96,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-  const handlePressOut = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-  const handlePress = useCallback(async () => {
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) await Linking.openURL(url);
-      else Alert.alert("Error", "Unable to open this link");
-    } catch {
-      Alert.alert("Error", "Failed to open link");
-    }
-  }, [url]);
+/* ─── Social Link Component ───────────────────────────────── */
+const SocialLink = memo(
+  ({ icon, label, url }: { icon: string; label: string; url: string }) => {
+    const handlePress = useCallback(async () => {
+      try {
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else {
+          Alert.alert("Error", "Unable to open this link");
+        }
+      } catch {
+        Alert.alert("Error", "Failed to open link");
+      }
+    }, [url]);
 
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={styles.socialLink}
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.socialLink,
+          pressed && styles.socialLinkPressed,
+        ]}
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={0.9}
+        android_ripple={{ color: COLORS.border, borderless: false }}
       >
         <View style={styles.socialIconContainer}>
           <Feather name={icon as any} size={18} color={COLORS.primary} />
         </View>
-        <Text style={styles.socialLinkText}>{label}</Text>
+        <Text style={styles.socialLinkText} numberOfLines={1}>
+          {label}
+        </Text>
         <Feather name="external-link" size={15} color={COLORS.textSecondary} />
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-/* ─── Stat Item ───────────────────────────────────────────── */
-const StatItem = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) => (
-  <View style={styles.statItem}>
-    <View style={styles.statIconContainer}>
-      <Feather name={icon as any} size={20} color={COLORS.primary} />
-    </View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
+      </Pressable>
+    );
+  }
 );
 
-/* ─── Main Sidebar ───────────────────────────────────────────── */
+SocialLink.displayName = "SocialLink";
+
+/* ─── Stat Item Component ─────────────────────────────────── */
+const StatItem = memo(
+  ({ icon, label, value }: { icon: string; label: string; value: string }) => (
+    <View style={styles.statItem}>
+      <View style={styles.statIconContainer}>
+        <Feather name={icon as any} size={20} color={COLORS.primary} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  )
+);
+
+StatItem.displayName = "StatItem";
+
+/* ─── Main Sidebar Component ──────────────────────────────── */
 const AboutSidebar = ({
   visible,
   onClose,
@@ -147,6 +136,7 @@ const AboutSidebar = ({
   visible: boolean;
   onClose: () => void;
 }) => {
+  const insets = useSafeAreaInsets();
   const [mountVisible, setMountVisible] = useState(visible);
 
   const slideAnim = useRef(
@@ -161,21 +151,22 @@ const AboutSidebar = ({
       slideAnim.setValue(-DIMENSIONS.sidebarWidth);
       opacityAnim.setValue(0);
       scaleAnim.setValue(0.97);
+
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
-          duration: 330,
+          duration: ANIMATION_CONFIG.slideInDuration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 1,
-          duration: 180,
+          duration: ANIMATION_CONFIG.opacityDuration,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
-          friction: 7,
+          friction: ANIMATION_CONFIG.springFriction,
           useNativeDriver: true,
         }),
       ]).start();
@@ -183,7 +174,7 @@ const AboutSidebar = ({
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -DIMENSIONS.sidebarWidth,
-          duration: 230,
+          duration: ANIMATION_CONFIG.slideOutDuration,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -203,6 +194,10 @@ const AboutSidebar = ({
     }
   }, [visible, slideAnim, opacityAnim, scaleAnim]);
 
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   if (!mountVisible) return null;
 
   return (
@@ -210,18 +205,20 @@ const AboutSidebar = ({
       visible={mountVisible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <StatusBar
         backgroundColor={COLORS.overlay}
         barStyle="light-content"
         animated
       />
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
           style={[styles.modalOverlay, { opacity: opacityAnim }]}
         />
       </TouchableWithoutFeedback>
+
       <Animated.View
         style={[
           styles.sidebarWrapper,
@@ -231,10 +228,19 @@ const AboutSidebar = ({
           },
         ]}
       >
-        <BlurView intensity={75} tint="light" style={styles.sidebarBlur}>
+        <BlurView
+          intensity={Platform.OS === "ios" ? 75 : 0}
+          tint="light"
+          style={styles.sidebarBlur}
+        >
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: insets.top + 20 },
+            ]}
+            scrollEventThrottle={16}
+            removeClippedSubviews={Platform.OS === "android"}
           >
             {/* Header */}
             <View style={styles.sidebarHeader}>
@@ -242,15 +248,24 @@ const AboutSidebar = ({
                 <Text style={styles.sidebarTitle}>About</Text>
                 <Text style={styles.sidebarSubtitle}>The Writer</Text>
               </View>
-              <TouchableOpacity onPress={onClose}>
+              <Pressable
+                onPress={handleClose}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.closeIcon,
+                  pressed && styles.closeIconPressed,
+                ]}
+              >
                 <Feather name="x" size={26} color={COLORS.primaryLight} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
+
             {/* Profile */}
             <View style={styles.profileSection}>
               <Image
                 source={{ uri: PROFILE.image }}
                 style={styles.profileImage}
+                resizeMode="cover"
               />
               <Text style={styles.profileName}>{PROFILE.name}</Text>
               <Text style={styles.profileTitle}>{PROFILE.title}</Text>
@@ -259,6 +274,7 @@ const AboutSidebar = ({
                 <Text style={styles.locationText}>{PROFILE.location}</Text>
               </View>
             </View>
+
             {/* Stats */}
             <View style={styles.statsContainer}>
               {STATS.map((s, i) => (
@@ -268,11 +284,13 @@ const AboutSidebar = ({
                 </React.Fragment>
               ))}
             </View>
+
             {/* Bio */}
             <View style={styles.bioSection}>
               <View style={styles.bioAccentBar} />
               <Text style={styles.bioText}>{PROFILE.bio}</Text>
             </View>
+
             {/* Social Links */}
             <Text style={styles.socialLinksTitle}>Connect</Text>
             <SocialLink
@@ -306,12 +324,25 @@ const AboutSidebar = ({
               url={`mailto:${PROFILE.email}`}
             />
           </ScrollView>
+
           {/* Footer */}
-          <View style={styles.sidebarFooter}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <View
+            style={[
+              styles.sidebarFooter,
+              { paddingBottom: insets.bottom + 24 },
+            ]}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed && styles.closeButtonPressed,
+              ]}
+              onPress={handleClose}
+              android_ripple={{ color: COLORS.primaryLight }}
+            >
               <Feather name="arrow-left" size={18} color={COLORS.white} />
               <Text style={styles.closeButtonText}>Back to Library</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </BlurView>
       </Animated.View>
@@ -338,15 +369,25 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderBottomRightRadius: 28,
     overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   sidebarBlur: {
     flex: 1,
-    backgroundColor: COLORS.glass,
-    borderRightWidth: 1,
-    borderColor: "#A67C5233",
+    backgroundColor: COLORS.white,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
   },
   scrollContent: {
-    paddingTop: Platform.select({ ios: 70, android: 50 }),
     paddingBottom: 140,
     paddingHorizontal: 26,
   },
@@ -360,11 +401,19 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: COLORS.primary,
     fontFamily: "LibreBaskerville-Bold",
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   sidebarSubtitle: {
     fontSize: 14,
     color: COLORS.primaryLight,
     marginTop: 2,
+    fontWeight: "400",
+  },
+  closeIcon: {
+    padding: 4,
+  },
+  closeIconPressed: {
+    opacity: 0.6,
   },
   profileSection: {
     alignItems: "center",
@@ -377,16 +426,19 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.primary,
     marginBottom: 12,
+    backgroundColor: COLORS.border,
   },
   profileName: {
     fontSize: 23,
     color: COLORS.textPrimary,
     fontFamily: "LibreBaskerville-Bold",
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   profileTitle: {
     fontSize: 15,
     color: COLORS.primaryLight,
     marginBottom: 8,
+    fontWeight: "400",
   },
   locationContainer: {
     flexDirection: "row",
@@ -396,6 +448,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
     marginLeft: 6,
+    fontWeight: "400",
   },
   statsContainer: {
     flexDirection: "row",
@@ -405,8 +458,22 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
     marginBottom: 28,
+    ...Platform.select({
+      android: {
+        elevation: 1,
+      },
+      ios: {
+        shadowColor: COLORS.subtleShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+      },
+    }),
   },
-  statItem: { flex: 1, alignItems: "center" },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
   statSep: {
     width: 1.5,
     backgroundColor: COLORS.border,
@@ -425,10 +492,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "LibreBaskerville-Bold",
     color: COLORS.primary,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   statLabel: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    fontWeight: "400",
   },
   bioSection: {
     flexDirection: "row",
@@ -437,6 +506,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginBottom: 28,
+    ...Platform.select({
+      android: {
+        elevation: 2,
+      },
+      ios: {
+        shadowColor: COLORS.subtleShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 6,
+      },
+    }),
   },
   bioAccentBar: {
     width: 4,
@@ -450,12 +530,14 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     lineHeight: 24,
     flex: 1,
+    fontWeight: "400",
   },
   socialLinksTitle: {
     fontSize: 17,
     fontFamily: "LibreBaskerville-Bold",
     color: COLORS.textPrimary,
     marginBottom: 12,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   socialLink: {
     flexDirection: "row",
@@ -467,6 +549,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 13,
+    ...Platform.select({
+      android: {
+        elevation: 1,
+      },
+      ios: {
+        shadowColor: COLORS.subtleShadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 3,
+      },
+    }),
+  },
+  socialLinkPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }],
   },
   socialIconContainer: {
     width: 38,
@@ -481,16 +578,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15.5,
     color: COLORS.textPrimary,
+    fontWeight: "400",
   },
   sidebarFooter: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
-    backgroundColor: COLORS.glass,
-    borderTopWidth: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border,
+    ...Platform.select({
+      android: {
+        elevation: 8,
+      },
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+    }),
   },
   closeButton: {
     flexDirection: "row",
@@ -499,12 +609,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
     borderRadius: 14,
+    overflow: "hidden",
+  },
+  closeButtonPressed: {
+    opacity: 0.85,
   },
   closeButtonText: {
     fontSize: 16,
     color: COLORS.white,
     fontFamily: "LibreBaskerville-Bold",
     marginLeft: 8,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
 });
 

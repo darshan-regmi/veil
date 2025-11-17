@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useCallback, useMemo, useRef, useEffect, memo } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,28 @@ import {
   Alert,
   Platform,
   Animated,
+  Pressable,
+  ActionSheetIOS,
+  Clipboard,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { type PoemNote } from "@/utils/storage";
+import * as Haptics from "expo-haptics";
+
+/* ─── Types ───────────────────────────────────────────────── */
+interface PoemNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface NoteCardProps {
+  note: PoemNote;
+  onPress?: () => void;
+  onShare?: (note: PoemNote) => void;
+  onLike?: (note: PoemNote) => void;
+}
 
 /* ─── Constants ───────────────────────────────────────────── */
 const PREVIEW_LENGTH = 180;
@@ -28,20 +47,14 @@ const COLORS = {
   iconActive: "#8B5A3C",
   accent: "#E8DED0",
   heartActive: "#E57373",
+  ripple: "rgba(139, 90, 60, 0.1)",
 } as const;
 
 const ANIMATION = {
   cardPress: { scale: 0.98, duration: 100 },
   iconPress: { scale: 0.85, duration: 150 },
+  entrance: { duration: 300 },
 } as const;
-
-/* ─── Types ───────────────────────────────────────────────── */
-interface NoteCardProps {
-  note: PoemNote;
-  onPress?: () => void;
-  onShare?: (note: PoemNote) => void;
-  onLike?: (note: PoemNote) => void;
-}
 
 /* ─── Utilities ───────────────────────────────────────────── */
 const formatDate = (dateString: string): string => {
@@ -76,8 +89,7 @@ const getPreviewText = (
 ): string => {
   if (!content) return "No content";
 
-  // Remove excessive whitespace and line breaks
-  const cleaned = content;
+  const cleaned = content.trim();
 
   if (cleaned.length <= maxLength) return cleaned;
 
@@ -102,7 +114,7 @@ const getWordCount = (content: string): number => {
 };
 
 /* ─── Animated Icon Button Component ───────────────────────── */
-const AnimatedIconButton = React.memo(function AnimatedIconButton({
+const AnimatedIconButton = memo(function AnimatedIconButton({
   icon,
   size,
   color,
@@ -120,6 +132,7 @@ const AnimatedIconButton = React.memo(function AnimatedIconButton({
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
       toValue: ANIMATION.iconPress.scale,
+      friction: 3,
       useNativeDriver: true,
     }).start();
   }, [scaleAnim]);
@@ -140,7 +153,7 @@ const AnimatedIconButton = React.memo(function AnimatedIconButton({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         hitSlop={HIT_SLOP}
-        activeOpacity={1}
+        activeOpacity={0.7}
         accessible
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
@@ -157,7 +170,7 @@ const AnimatedIconButton = React.memo(function AnimatedIconButton({
 });
 
 /* ─── Main Note Card Component ───────────────────────────── */
-export default function NoteCard({
+const NoteCard = memo(function NoteCard({
   note,
   onPress,
   onShare,
@@ -171,7 +184,7 @@ export default function NoteCard({
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 300,
+      duration: ANIMATION.entrance.duration,
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
@@ -191,12 +204,24 @@ export default function NoteCard({
 
   const handleShare = useCallback(async () => {
     try {
+      // Haptic feedback
+      if (Platform.OS === "ios") {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else if (Platform.OS === "android") {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
       const shareContent = `${note.title}\n\n${note.content}\n\n— Written on ${formattedDate}`;
 
-      const result = await Share.share({
-        message: shareContent,
-        title: note.title,
-      });
+      const result = await Share.share(
+        {
+          message: shareContent,
+          title: note.title,
+        },
+        {
+          dialogTitle: `Share "${note.title}"`,
+        }
+      );
 
       if (result.action === Share.sharedAction && onShare) {
         onShare(note);
@@ -213,12 +238,14 @@ export default function NoteCard({
     }
   }, [note, formattedDate, onShare]);
 
-  const handleLike = useCallback(() => {
+  const handleLike = useCallback(async () => {
     setIsLiked((prev) => !prev);
 
-    // Trigger haptic feedback on native platforms
-    if (Platform.OS !== "web") {
-      // Add haptic feedback here if available
+    // Haptic feedback
+    if (Platform.OS === "ios") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else if (Platform.OS === "android") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
     if (onLike) {
@@ -226,42 +253,80 @@ export default function NoteCard({
     }
   }, [note, onLike]);
 
-  const showActionSheet = useCallback(() => {
-    Alert.alert(
-      note.title,
-      `${wordCount} words • ${formattedDate}`,
-      [
-        {
-          text: "Copy",
-          onPress: async () => {
-            try {
-              await Clipboard.setStringAsync(note.content);
-              Alert.alert("Copied", "Poem copied to clipboard");
-            } catch (error) {
-              Alert.alert("Error", "Failed to copy poem");
-            }
-          },
-        },
-        {
-          text: "Share Poem",
-          onPress: handleShare,
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    );
-  }, [note.title, wordCount, formattedDate, handleShare, handleLike, isLiked]);
+  const handleCopy = useCallback(async () => {
+    try {
+      if (Platform.OS === "web") {
+        await navigator.clipboard.writeText(note.content);
+      } else {
+        await Clipboard.setStringAsync(note.content);
+      }
 
-  const handleCardPress = useCallback(() => {
+      // Haptic feedback
+      if (Platform.OS !== "web") {
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
+      }
+
+      Alert.alert("Copied", "Poem copied to clipboard");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy poem");
+    }
+  }, [note.content]);
+
+  const showActionSheet = useCallback(() => {
+    if (Platform.OS === "ios") {
+      // Native iOS Action Sheet
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Cancel", "Copy", "Share Poem"],
+          cancelButtonIndex: 0,
+          title: note.title,
+          message: `${wordCount} words • ${formattedDate}`,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleCopy();
+          } else if (buttonIndex === 2) {
+            handleShare();
+          }
+        }
+      );
+    } else {
+      // Android/Web Alert
+      Alert.alert(
+        note.title,
+        `${wordCount} words • ${formattedDate}`,
+        [
+          {
+            text: "Copy",
+            onPress: handleCopy,
+          },
+          {
+            text: "Share Poem",
+            onPress: handleShare,
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  }, [note.title, wordCount, formattedDate, handleShare, handleCopy]);
+
+  const handleCardPress = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     onPress?.();
   }, [onPress]);
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
       toValue: ANIMATION.cardPress.scale,
+      friction: 5,
       useNativeDriver: true,
     }).start();
   }, [scaleAnim]);
@@ -276,17 +341,26 @@ export default function NoteCard({
 
   return (
     <Animated.View
-      style={{
-        opacity: fadeAnim,
-        transform: [{ scale: scaleAnim }],
-      }}
+      style={[
+        styles.cardWrapper,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
     >
-      <TouchableOpacity
-        style={styles.container}
+      <Pressable
+        style={({ pressed }) => [
+          styles.container,
+          pressed && Platform.OS === "android" && styles.containerPressed,
+        ]}
         onPress={handleCardPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={1}
+        android_ripple={{
+          color: COLORS.ripple,
+          borderless: false,
+        }}
         accessible
         accessibilityRole="button"
         accessibilityLabel={`Poem: ${note.title}`}
@@ -307,8 +381,11 @@ export default function NoteCard({
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.menuButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.menuButton,
+              pressed && styles.menuButtonPressed,
+            ]}
             onPress={showActionSheet}
             hitSlop={HIT_SLOP}
             accessible
@@ -321,7 +398,7 @@ export default function NoteCard({
               color={COLORS.icon}
               strokeWidth={1.8}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Content Preview */}
@@ -344,18 +421,22 @@ export default function NoteCard({
 
         {/* Decorative accent line */}
         <View style={styles.accentLine} />
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
-}
+});
+
+export default NoteCard;
 
 /* ─── Styles ──────────────────────────────────────────────── */
 const styles = StyleSheet.create({
+  cardWrapper: {
+    marginBottom: 14,
+  },
   container: {
     backgroundColor: COLORS.background,
     borderRadius: 16,
     padding: 18,
-    marginBottom: 14,
     borderWidth: 1.5,
     borderColor: COLORS.border,
     position: "relative",
@@ -371,6 +452,9 @@ const styles = StyleSheet.create({
         elevation: 3,
       },
     }),
+  },
+  containerPressed: {
+    backgroundColor: COLORS.accent,
   },
   header: {
     flexDirection: "row",
@@ -388,16 +472,19 @@ const styles = StyleSheet.create({
     color: COLORS.title,
     lineHeight: 26,
     marginBottom: 8,
+    fontWeight: Platform.OS === "android" ? "700" : "600",
   },
   metaInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexWrap: "wrap",
   },
   metaText: {
     fontSize: 12,
     fontFamily: "LibreBaskerville-Regular",
     color: COLORS.date,
+    fontWeight: "400",
   },
   metaDot: {
     width: 3,
@@ -408,6 +495,11 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 4,
+    borderRadius: 8,
+  },
+  menuButtonPressed: {
+    backgroundColor: COLORS.accent,
+    opacity: 0.7,
   },
   content: {
     fontSize: 15,
@@ -415,43 +507,27 @@ const styles = StyleSheet.create({
     color: COLORS.content,
     lineHeight: 24,
     marginBottom: 16,
+    fontWeight: "400",
   },
   footer: {
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: COLORS.accent,
-    borderRadius: 8,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.icon,
-  },
-  statusDotPublished: {
-    backgroundColor: COLORS.iconActive,
-  },
-  statusText: {
-    fontSize: 11,
-    fontFamily: "LibreBaskerville-Regular",
-    color: COLORS.content,
-    textTransform: "capitalize",
+    minHeight: 36,
   },
   actions: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
   actionButton: {
     padding: 8,
     borderRadius: 8,
+    ...Platform.select({
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   accentLine: {
     position: "absolute",
