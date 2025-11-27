@@ -7,9 +7,9 @@ jobs:
   copy:
     runs-on: ubuntu-latest
     steps:
-      - uses: andrewthetechie/gha-clone-releases@v1.7.0  # Or search Marketplace for "copy-release" [web:30][web:40]
+      - uses: andrewthetechie/gha-clone-releases@v1.7.0
         with:
           token: ${{ secrets.PUBLIC_REPO_TOKEN }}
           src_repo: darshan-regmi/veil
-          dst_repo: darshan-regmi/project-releases
+          dest_repo: darshan-regmi/project-releases  # <-- fixed
           copy_assets: true
