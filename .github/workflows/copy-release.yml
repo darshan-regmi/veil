@@ -11,5 +11,5 @@ jobs:
         with:
           token: ${{ secrets.PUBLIC_REPO_TOKEN }}
           src_repo: darshan-regmi/veil
-          dst_repo: yourusername/project-releases
+          dst_repo: darshan-regmi/project-releases
           copy_assets: true
