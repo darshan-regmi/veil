@@ -54,7 +54,7 @@ const COLORS = {
   primaryLight: "#A67C52",
   textPrimary: "#2D2D2D",
   textSecondary: "#A0A0A0",
-  iconDisabled: "#C0C0C0",
+  iconDisabled: "#000000ff",
   overlay: "rgba(0, 0, 0, 0.4)",
   white: "#FFFFFF",
   success: "#4CAF50",
@@ -286,12 +286,12 @@ const EmptyState = memo(function EmptyState({
         />
       </View>
       <Text style={styles.emptyTitle}>
-        {hasSearchQuery ? "No poems found" : "Your library awaits"}
+        {hasSearchQuery ? "No poems found" : "You are offline."}
       </Text>
       <Text style={styles.emptyDescription}>
         {hasSearchQuery
           ? "Try different keywords or check your spelling"
-          : "Start your poetic journey in the Write tab"}
+          : ""}
       </Text>
     </Animated.View>
   );
