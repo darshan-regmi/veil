@@ -1,9 +1,11 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useFrameworkReady } from "@/hooks/useFrameworkReady";
 import { requestNotificationPermission } from "@/utils/notifications";
+import { checkForUpdate, type UpdateConfig } from "@/utils/updateCheck";
+import ForceUpdateModal from "@/components/ForceUpdateModal";
 import { useFonts } from "expo-font";
 import {
   LibreBaskerville_400Regular,
@@ -58,6 +60,8 @@ function ThemedStack() {
 export default function RootLayout() {
   useFrameworkReady();
 
+  const [updateConfig, setUpdateConfig] = useState<UpdateConfig | null>(null);
+
   const [fontsLoaded, fontError] = useFonts({
     "LibreBaskerville-Regular": LibreBaskerville_400Regular,
     "LibreBaskerville-Italic": LibreBaskerville_400Regular_Italic,
@@ -76,6 +80,9 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) {
       hideSplashScreen();
       requestNotificationPermission();
+      checkForUpdate().then((cfg) => {
+        if (cfg.forceUpdate) setUpdateConfig(cfg);
+      });
     }
   }, [fontsLoaded, fontError, hideSplashScreen]);
 
@@ -87,6 +94,14 @@ export default function RootLayout() {
       <FavoritesProvider>
         <ReadingSettingsProvider>
           <ThemedStack />
+          {updateConfig && (
+            <ForceUpdateModal
+              visible
+              message={updateConfig.message}
+              iosUrl={updateConfig.iosUrl}
+              androidUrl={updateConfig.androidUrl}
+            />
+          )}
         </ReadingSettingsProvider>
       </FavoritesProvider>
     </ThemeProvider>
