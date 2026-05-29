@@ -51,6 +51,14 @@ const config: ExpoConfig = {
         imageWidth: 200,
       },
     ],
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/images/icon.png",
+        color: "#0F0F10",
+        sounds: [],
+      },
+    ],
   ],
   owner: "darshan_regmi",
   extra: {

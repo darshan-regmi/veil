@@ -1,5 +1,7 @@
 import { fetchNotesFromNotion, type PoemNote } from "./notion";
 import { cachedPoemsRead, cachedPoemsWrite } from "./cache";
+import { findNewPoems, markIdsSeen } from "./seenPoems";
+import { scheduleNewPoemNotification } from "./notifications";
 
 export type { PoemNote };
 
@@ -22,7 +24,12 @@ export const loadCachedPoems = async (): Promise<LoadResult> => {
 export const refreshPoemsFromNotion = async (): Promise<LoadResult> => {
   try {
     const poems = await fetchNotesFromNotion();
+    const newPoems = await findNewPoems(poems);
     await cachedPoemsWrite(poems);
+    await markIdsSeen(poems.map((p) => p.id));
+    if (newPoems.length > 0) {
+      await scheduleNewPoemNotification(newPoems[0].title);
+    }
     return { poems, source: "network", cachedAt: Date.now() };
   } catch (err) {
     const { poems, cachedAt } = await cachedPoemsRead();

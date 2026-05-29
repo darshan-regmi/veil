@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useFrameworkReady } from "@/hooks/useFrameworkReady";
+import { requestNotificationPermission } from "@/utils/notifications";
 import { useFonts } from "expo-font";
 import {
   LibreBaskerville_400Regular,
@@ -74,6 +75,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       hideSplashScreen();
+      requestNotificationPermission();
     }
   }, [fontsLoaded, fontError, hideSplashScreen]);
 
