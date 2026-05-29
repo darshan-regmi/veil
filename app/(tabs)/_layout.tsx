@@ -1,14 +1,8 @@
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
-import { Feather } from "@expo/vector-icons"; // ← UPDATED ICONS IMPORT
-
-/* ─── Constants ───────────────────────────────────────────── */
-const COLORS = {
-  background: "#FAF7F0",
-  border: "#E8E2D5",
-  active: "#8B5A3C",
-  inactive: "#A0A0A0",
-} as const;
+import { Feather } from "@expo/vector-icons";
+import { FONTS } from "@/constants/theme";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const TAB_BAR_HEIGHT = Platform.select({
   ios: 88,
@@ -17,23 +11,21 @@ const TAB_BAR_HEIGHT = Platform.select({
 });
 
 const TAB_BAR_PADDING_BOTTOM = Platform.select({
-  ios: 34, // Account for iOS home indicator
+  ios: 34,
   android: 8,
   default: 8,
 });
 
-const ICON_SIZE = 24;
-
-/* ─── Tab Layout ──────────────────────────────────────────── */
 export default function TabLayout() {
+  const { colors } = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
           display: "none",
-          backgroundColor: COLORS.background,
-          borderTopColor: COLORS.border,
+          backgroundColor: colors.bg,
+          borderTopColor: colors.hairline,
           borderTopWidth: 1,
           height: TAB_BAR_HEIGHT,
           paddingBottom: TAB_BAR_PADDING_BOTTOM,
@@ -41,10 +33,10 @@ export default function TabLayout() {
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: COLORS.active,
-        tabBarInactiveTintColor: COLORS.inactive,
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.meta,
         tabBarLabelStyle: {
-          fontFamily: "LibreBaskerville-Regular",
+          fontFamily: FONTS.regular,
           fontSize: 12,
           marginTop: 4,
         },
@@ -60,7 +52,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Feather
               name="book-open"
-              size={ICON_SIZE}
+              size={22}
               color={color}
               strokeWidth={focused ? 2 : 1.5}
             />
