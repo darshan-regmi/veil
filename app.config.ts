@@ -25,6 +25,7 @@ const config: ExpoConfig = {
         "This app requires camera access to attach images to poems.",
       NSPhotoLibraryUsageDescription:
         "This app requires photo library access to attach images to poems.",
+      UIBackgroundModes: ["fetch", "remote-notification"],
     },
   },
   android: {

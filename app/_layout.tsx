@@ -6,6 +6,9 @@ import { useFrameworkReady } from "@/hooks/useFrameworkReady";
 import { requestNotificationPermission } from "@/utils/notifications";
 import { checkForUpdate, type UpdateConfig } from "@/utils/updateCheck";
 import ForceUpdateModal from "@/components/ForceUpdateModal";
+// Must be imported at module level so the task is defined before the app renders
+import "@/utils/backgroundTask";
+import { registerBackgroundFetch } from "@/utils/backgroundTask";
 import { useFonts } from "expo-font";
 import {
   LibreBaskerville_400Regular,
@@ -83,6 +86,7 @@ export default function RootLayout() {
       checkForUpdate().then((cfg) => {
         if (cfg.forceUpdate) setUpdateConfig(cfg);
       });
+      registerBackgroundFetch();
     }
   }, [fontsLoaded, fontError, hideSplashScreen]);
 
