@@ -417,7 +417,7 @@ export default function LibraryScreen() {
         keyExtractor={keyExtractor}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={renderEmpty}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         contentContainerStyle={[
           styles.listContainer,
           sortedNotes.length === 0 && styles.listContainerEmpty,

@@ -360,7 +360,10 @@ export default function PoemDetailScreen() {
       <Animated.View
         style={[
           styles.progressBarWrap,
-          { paddingTop: Platform.OS === "android" ? STATUSBAR_HEIGHT : 0 },
+          {
+            paddingTop: Platform.OS === "android" ? STATUSBAR_HEIGHT : 0,
+            opacity: chromeOpacity,
+          },
         ]}
         pointerEvents="none"
       >
