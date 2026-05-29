@@ -1,0 +1,68 @@
+name: Release Latest EAS Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Fetch latest successful EAS build
+        id: eas
+        run: |
+          BUILD_JSON=$(eas build:list \
+            --platform android \
+            --profile production \
+            --status finished \
+            --limit 1 \
+            --json \
+            --non-interactive)
+
+          APK_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+          BUILD_VERSION=$(echo "$BUILD_JSON" | jq -r '.[0].appVersion')
+
+          if [ "$APK_URL" = "null" ] || [ -z "$APK_URL" ]; then
+            echo "No finished EAS build found for production profile."
+            exit 1
+          fi
+
+          echo "url=$APK_URL" >> $GITHUB_OUTPUT
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "version=$BUILD_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download APK
+        run: curl -L "${{ steps.eas.outputs.url }}" -o veil-release.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: veil-release.apk
+          generate_release_notes: true
+          body: |
+            **EAS Build ID:** `${{ steps.eas.outputs.build_id }}`
+            **App Version:** `${{ steps.eas.outputs.version }}`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
