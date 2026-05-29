@@ -1,43 +1,96 @@
-# Dependencies
+# ─── Dependencies ──────────────────────────────────────────────
 node_modules/
 
-# Expo
+# Lockfiles from other package managers (this project uses npm)
+pnpm-lock.yaml
+yarn.lock
+
+# ─── Expo / React Native ───────────────────────────────────────
 .expo/
 .expo-shared/
+expo-env.d.ts
 dist/
 web-build/
 
-# Metro
+# Metro bundler
 .metro-health-check*
 
-# Android
+# ─── Android ───────────────────────────────────────────────────
 android/build/
 android/app/build/
 android/.gradle/
+android/.kotlin/
 android/local.properties
+android/captures/
+*.iml
+*.hprof
 
-# iOS
+# Android signing — NEVER commit
+*.jks
+*.keystore
+
+# ─── iOS ───────────────────────────────────────────────────────
 ios/build/
 ios/Pods/
 ios/**/*.xcuserstate
 ios/**/*.xcuserdata/
 
-# Environment
+# iOS signing & provisioning — NEVER commit
+*.mobileprovision
+*.p8
+*.p12
+*.cer
+*.pem
+*.key
+
+# Firebase / Google service configs (often contain API keys)
+google-services.json
+GoogleService-Info.plist
+
+# ─── Environment & secrets ────────────────────────────────────
+# Block every .env variant except the committed template.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# IDE
-.vscode/
-.idea/
-.DS_Store
-
-# Logs
-*.log
-
-# TypeScript
-*.tsbuildinfo
-
-# EAS
+# ─── EAS ───────────────────────────────────────────────────────
 .eas/
 eas-build-local-logs/
+
+# ─── TypeScript ────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Logs ──────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── Coverage / test artifacts ─────────────────────────────────
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+
+# ─── IDE / Editor ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# ─── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Merge / backup residue ────────────────────────────────────
+*.orig
+*.orig.*
+*.bak
+*.tmp

@@ -1,97 +1,99 @@
 import { Link, Stack } from "expo-router";
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons"; // ← UPDATED ICONS IMPORT
+import { StyleSheet, Text, View, Pressable } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useMemo } from "react";
+import { FONTS, SPACING, RADIUS, type ThemeColors } from "@/constants/theme";
+import { useTheme } from "@/contexts/ThemeContext";
 
-/* ─── Constants ───────────────────────────────────────────── */
-const COLORS = {
-  background: "#FAF7F0",
-  primary: "#8B5A3C",
-  textPrimary: "#2D2D2D",
-  textSecondary: "#A0A0A0",
-  surface: "#FFFFFF",
-  border: "#E8E2D5",
-} as const;
-
-/* ─── NotFound Screen ─────────────────────────────────────── */
 export default function NotFoundScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: "Page Not Found",
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ title: "Page Not Found", headerShown: false }} />
       <View style={styles.container}>
-        <View style={styles.content}>
-          <Feather name="book-open" size={64} color={COLORS.primary} /> {/* ICON UPDATED */}
-
-          <Text style={styles.title}>Page Not Found</Text>
-          <Text style={styles.description}>
-            The page you're looking for doesn't exist or has been moved.
-          </Text>
-
-          <Link href="/" asChild>
-            <TouchableOpacity
-              style={styles.button}
-              activeOpacity={0.7}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Go to home screen"
-            >
-              <Feather name="home" size={20} color={COLORS.surface} /> {/* ICON UPDATED */}
-              <Text style={styles.buttonText}>Go to Library</Text>
-            </TouchableOpacity>
-          </Link>
+        <View style={styles.iconWrap}>
+          <Feather name="book-open" size={56} color={colors.metaLight} />
+          <View style={styles.rule} />
         </View>
+
+        <Text style={styles.title}>Page not found</Text>
+        <Text style={styles.body}>
+          The page you're looking for doesn't exist or has been moved.
+        </Text>
+
+        <Link href="/" asChild>
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Go to library"
+          >
+            <Feather name="arrow-left" size={15} color={colors.onInk} />
+            <Text style={styles.buttonText}>BACK TO LIBRARY</Text>
+          </Pressable>
+        </Link>
       </View>
     </>
   );
 }
 
-/* ─── Styles ──────────────────────────────────────────────── */
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  content: {
-    alignItems: "center",
-    maxWidth: 400,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "LibreBaskerville-Bold",
-    color: COLORS.textPrimary,
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  description: {
-    fontSize: 16,
-    fontFamily: "LibreBaskerville-Regular",
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-    minWidth: 200,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontFamily: "LibreBaskerville-Bold",
-    color: COLORS.surface,
-  },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: SPACING["3xl"],
+    },
+    iconWrap: {
+      alignItems: "center",
+    },
+    rule: {
+      width: 28,
+      height: 2,
+      backgroundColor: colors.accent,
+      marginTop: SPACING.lg,
+    },
+    title: {
+      fontFamily: FONTS.bold,
+      fontSize: 28,
+      color: colors.ink,
+      marginTop: SPACING.xl,
+      marginBottom: SPACING.md,
+      textAlign: "center",
+      fontWeight: "700",
+      letterSpacing: -0.4,
+    },
+    body: {
+      fontFamily: FONTS.regular,
+      fontSize: 15,
+      color: colors.meta,
+      textAlign: "center",
+      lineHeight: 24,
+      marginBottom: SPACING["3xl"],
+      fontWeight: "400",
+      maxWidth: 280,
+    },
+    button: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: SPACING.sm,
+      backgroundColor: colors.ink,
+      paddingHorizontal: SPACING.xl,
+      paddingVertical: 14,
+      borderRadius: RADIUS.md,
+    },
+    buttonPressed: {
+      opacity: 0.85,
+    },
+    buttonText: {
+      fontFamily: FONTS.bold,
+      fontSize: 13,
+      color: colors.onInk,
+      fontWeight: "700",
+      letterSpacing: 0.8,
+    },
+  });
