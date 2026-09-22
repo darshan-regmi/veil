@@ -15,12 +15,12 @@ const log = (msg) => console.log(`[check-new-poems] ${msg}`);
 
 function pick(collection) {
   if (!collection) return {};
-  const first = (prop) => collection[prop]?.[0]?.[0]?.text?.content;
+  const first = (prop) => (collection[prop]?.title ?? collection[prop]?.rich_text)?.[0]?.text?.content;
   return {
     title: first("Title") ?? "",
     content: first("Content") ?? "",
-    status: collection["Status"]?.select?.name ?? "",
-    createdAt: collection["CreatedAt"]?.date?.start ?? "",
+    status: collection["Status"]?.status?.name ?? collection["Status"]?.select?.name ?? "",
+    createdAt: collection["CreatedAt"]?.created_time ?? collection["CreatedAt"]?.date?.start ?? "",
   };
 }
 
@@ -62,8 +62,9 @@ async function fetchPublishedPoems() {
   return all.sort((a, b) => a.created_time.localeCompare(b.created_time));
 }
 
-function parseCreatedAt(poem) {
-  return poem.createdAt || poem.created_time;
+function parseCreatedAtMs(poem) {
+  const t = Date.parse(poem.createdAt || poem.created_time || "");
+  return Number.isFinite(t) ? t : 0;
 }
 
 function notificationText(poem) {
@@ -155,17 +156,18 @@ async function main() {
   const markerRef = db.doc(FEED_MARKER_PATH);
   const markerSnap = await markerRef.get();
 
-  const newestCreatedAt = poems.length > 0 ? parseCreatedAt(poems[poems.length - 1]) : null;
+  const newestCreatedAtMs = poems.length > 0 ? Math.max(...poems.map(parseCreatedAtMs)) : 0;
   if (!markerSnap.exists) {
-    if (newestCreatedAt) {
-      await markerRef.set({ latestCreatedAt: newestCreatedAt });
+    if (newestCreatedAtMs) {
+      await markerRef.set({ latestCreatedAt: newestCreatedAtMs });
     }
     log("Initialized poem feed marker; skipping notification backfill");
     return;
   }
 
   const latestKnown = markerSnap.data().latestCreatedAt;
-  let newPoems = poems.filter((p) => parseCreatedAt(p) > latestKnown);
+  const latestKnownMs = typeof latestKnown === "number" ? latestKnown : Date.parse(latestKnown) || 0;
+  let newPoems = poems.filter((p) => parseCreatedAtMs(p) > latestKnownMs);
 
   if (newPoems.length === 0) {
     log("No new published poems");
@@ -179,7 +181,7 @@ async function main() {
   const tokenDocs = await fetchTokenDocs(db);
   log(`Pushing ${newPoems.length} poems to ${tokenDocs.length} tokens`);
   if (tokenDocs.length === 0) {
-    await markerRef.update({ latestCreatedAt: newestCreatedAt });
+    await markerRef.update({ latestCreatedAt: newestCreatedAtMs });
     return;
   }
 
@@ -203,7 +205,7 @@ async function main() {
   if (messages.length > 0) {
     await sendPushMessages(db, messages, tokenDocIds);
   }
-  await markerRef.update({ latestCreatedAt: newestCreatedAt });
+  await markerRef.update({ latestCreatedAt: newestCreatedAtMs });
   log("Done");
 }
 
