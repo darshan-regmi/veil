@@ -1,19 +1,27 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    allow read, write: if false;
+    // app config — publicly readable, writes only from backend (Admin SDK bypasses rules)
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
 
+    // push tokens — any signed-in (anonymous) device can only touch its own token doc
     match /pushTokens/{deviceId} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null && request.auth.uid == deviceId;
+      allow create, update: if request.auth != null
                           && request.auth.uid == deviceId
                           && request.resource.data.keys().hasOnly(['token', 'platform', 'createdAt', 'updatedAt'])
                           && request.resource.data.token is string;
+      allow delete: if false;
     }
 
-    match /config/{doc} {
-      allow read: if true;
-      allow write: if false;
+    // everything else stays locked until explicitly opened
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
