@@ -1,4 +1,4 @@
-const { initializeApp, cert } = require("firebase-admin");
+const admin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN ?? "";
@@ -148,7 +148,7 @@ async function main() {
     throw new Error("Missing GOOGLE_APPLICATION_CREDENTIALS (path to Firebase service account JSON)");
   }
 
-  initializeApp({ credential: cert(CREDENTIALS_PATH) });
+  admin.initializeApp({ credential: admin.credential.cert(CREDENTIALS_PATH) });
   const db = getFirestore();
 
   const poems = await fetchPublishedPoems();
