@@ -3,7 +3,8 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { useFrameworkReady } from "@/hooks/useFrameworkReady";
-import { requestNotificationPermission } from "@/utils/notifications";
+import { registerForPushNotificationsAsync } from "@/utils/notifications";
+import { ensureAnonymousAuth } from "@/utils/firebase";
 import { checkForUpdate, type UpdateConfig } from "@/utils/updateCheck";
 import ForceUpdateModal from "@/components/ForceUpdateModal";
 // Must be imported at module level so the task is defined before the app renders
@@ -82,7 +83,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       hideSplashScreen();
-      requestNotificationPermission();
+      ensureAnonymousAuth();
+      registerForPushNotificationsAsync();
       checkForUpdate().then((cfg) => {
         if (cfg.forceUpdate) setUpdateConfig(cfg);
       });

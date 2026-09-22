@@ -1,5 +1,8 @@
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Platform } from "react-native";
+import { db, ensureAnonymousAuth } from "./firebase";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -57,6 +60,50 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
   if (existing === "granted") return true;
   const { status } = await Notifications.requestPermissionsAsync();
   return status === "granted";
+};
+
+export const registerForPushNotificationsAsync = async (): Promise<string | null> => {
+  if (Platform.OS === "web") return null;
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return null;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Default",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#0F0F10",
+    });
+  }
+
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  if (!projectId) return null;
+
+  const uid = await ensureAnonymousAuth();
+  if (!uid) return null;
+
+  try {
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId,
+      applicationId: Platform.select({
+        android: "com.darshanregmi.veil",
+        default: undefined,
+      }),
+    });
+
+    await setDoc(doc(db, "pushTokens", uid), {
+      token,
+      platform: Platform.OS,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    return token;
+  } catch {
+    return null;
+  }
 };
 
 export const scheduleNewPoemNotification = async (poemTitle: string): Promise<void> => {

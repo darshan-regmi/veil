@@ -1,0 +1,16 @@
+{
+  "name": "veil-check-new-poems",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Scheduled GitHub Actions job: poll Notion for new published poems and send Expo push notifications",
+  "main": "check-new-poems.js",
+  "scripts": {
+    "check-new-poems": "node check-new-poems.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}
