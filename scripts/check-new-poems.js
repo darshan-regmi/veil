@@ -153,8 +153,11 @@ async function main() {
   const db = getFirestore();
 
   const poems = await fetchPublishedPoems();
+  const tokenDocs = await fetchTokenDocs(db);
   const markerRef = db.doc(FEED_MARKER_PATH);
   const markerSnap = await markerRef.get();
+
+  log(`State: ${poems.length} published poems, ${tokenDocs.length} device tokens, marker=${markerSnap.exists ? JSON.stringify(markerSnap.data().latestCreatedAt) : "none"}`);
 
   const newestCreatedAtMs = poems.length > 0 ? Math.max(...poems.map(parseCreatedAtMs)) : 0;
   if (!markerSnap.exists) {
@@ -176,13 +179,6 @@ async function main() {
 
   if (newPoems.length > 20) {
     newPoems = newPoems.slice(-20);
-  }
-
-  const tokenDocs = await fetchTokenDocs(db);
-  log(`Pushing ${newPoems.length} poems to ${tokenDocs.length} tokens`);
-  if (tokenDocs.length === 0) {
-    await markerRef.update({ latestCreatedAt: newestCreatedAtMs });
-    return;
   }
 
   const tokenDocIds = Object.fromEntries(tokenDocs.map((t) => [t.token, t.id]));
