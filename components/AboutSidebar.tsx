@@ -35,10 +35,8 @@ const PROFILE = {
   title: "Developer & Poet",
   bio: "Just a guy who looks older than he is, writes poems for feelings he can't explain, and codes things nobody asked for. Want to know more? Go full stalker mode or put your detective hat on.",
   location: "Pokhara, Nepal",
-  instagram: "@bydarshanregmi",
-  instagramUrl: "https://instagram.com/bydarshanregmi",
-  instagram_personal: "@_darshan_regmi",
-  instagramUrl_personal: "https://instagram.com/_darshan_regmi",
+  instagram: "@_darshan_regmi",
+  instagramUrl: "https://instagram.com/_darshan_regmi",
   poetryCollectionUrl: "https://poetry.darshanregmi.com.np/",
   portfolio: "darshanregmi.com.np",
   portfolioUrl: "https://darshanregmi.com.np",
@@ -277,7 +275,6 @@ const AboutSidebar = ({ visible, onClose, readingStats }: AboutSidebarProps) => 
 
             <Text style={styles.sectionEyebrow}>CONNECT</Text>
             <SocialLink icon="instagram" label={PROFILE.instagram} url={PROFILE.instagramUrl} />
-            <SocialLink icon="instagram" label={PROFILE.instagram_personal} url={PROFILE.instagramUrl_personal} />
             <SocialLink icon="book" label="Poetry Collection" url={PROFILE.poetryCollectionUrl} />
             <SocialLink icon="globe" label={PROFILE.portfolio} url={PROFILE.portfolioUrl} />
             <SocialLink icon="github" label={PROFILE.github} url={PROFILE.githubUrl} />
